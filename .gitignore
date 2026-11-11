@@ -1,0 +1,14 @@
+# Dependencies (installed via npm, huge folder)
+node_modules/
+
+# Environment variables and secrets (NEVER commit passwords/keys!)
+.env
+.env.*
+!.env.example
+
+# macOS system junk file
+.DS_Store
+
+# Logs and test coverage reports
+*.log
+coverage/
