@@ -1,0 +1,42 @@
+{
+  "info": {
+    "name": "Payment Ledger API",
+    "description": "Complete API collection for Payment Ledger Backend with Idempotent Transfers",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01 - System & Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Authentication (Day 4)",
+      "item": []
+    },
+    {
+      "name": "03 - Accounts (Day 2 & 3)",
+      "item": []
+    },
+    {
+      "name": "04 - Deposits & Ledger (Day 5)",
+      "item": []
+    },
+    {
+      "name": "05 - Transfers & Idempotency (Day 6-8)",
+      "item": []
+    }
+  ]
+}
