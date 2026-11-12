@@ -1,11 +1,11 @@
+const env = require('./config/env');
 const app = require('./app');
 
-const PORT = process.env.PORT || 3000;
-
-const server = app.listen(PORT, () => {
-  console.log(`[SERVER] Payment Ledger API running on http://localhost:${PORT}`);
+const server = app.listen(env.port, () => {
+  console.log(
+    `[SERVER] ${env.serviceName} (${env.nodeEnv}) running on http://localhost:${env.port}`
+  );
 });
-
 
 process.on('SIGINT', () => {
   console.log('\n[SERVER] Shutting down gracefully...');

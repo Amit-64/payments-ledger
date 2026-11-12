@@ -1,5 +1,5 @@
 const express = require('express');
-
+const env = require('./config/env');
 const app = express();
 
 
@@ -11,7 +11,8 @@ app.get('/api/v1/health', (req, res) => {
     success: true,
     data: {
       status: 'UP',
-      service: 'payments-ledger-api',
+      service: env.serviceName,
+      environment : env.nodeEnv,
       uptimeSeconds: Math.floor(process.uptime()),
       timestamp: new Date().toISOString(),
     },
