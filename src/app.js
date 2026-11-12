@@ -2,7 +2,7 @@ const express = require('express');
 const env = require('./config/env');
 const requestLogger = require('./middleware/requestLogger');
 const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
-
+const accountRoutes = require('./routes/account.routes');
 const app = express();
 
 
@@ -22,6 +22,9 @@ app.get('/api/v1/health', (req, res) => {
     },
   });
 });
+
+app.use('/api/v1/accounts', accountRoutes);
+
 app.use(notFoundHandler);
 
 app.use(errorHandler);
