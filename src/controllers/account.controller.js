@@ -1,8 +1,8 @@
 const accountService = require('../services/account.service');
-
+const DEFAULT_DEMO_USER_ID = '00000000-0000-4000-8000-000000000002';
 const createAccount = async (req, res, next) => {
   try {
-    const userId = req.user?.id || req.body.userId || 'demo-user-1';
+    const userId = req.user?.id || req.body.userId ||  DEFAULT_DEMO_USER_ID;
     const { name, currency } = req.body;
 
     const account = await accountService.createAccount({
