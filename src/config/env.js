@@ -6,6 +6,7 @@ const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: Number(process.env.PORT) || 3000,
   serviceName: process.env.SERVICE_NAME || 'payments-ledger-api',
+
   db: {
     host: process.env.DB_HOST || 'localhost',
     port: Number(process.env.DB_PORT) || 5432,
@@ -14,6 +15,10 @@ const env = {
     database: process.env.DB_NAME || 'payments_ledger',
     max: Number(process.env.DB_POOL_MAX) || 10,
   },
+
+  jwtSecret: process.env.JWT_SECRET,
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '1h',
+  bcryptSaltRounds: Number(process.env.BCRYPT_SALT_ROUNDS) || 10,
 };
 
 module.exports = env;

@@ -1,12 +1,11 @@
 const accountService = require('../services/account.service');
-const DEFAULT_DEMO_USER_ID = '00000000-0000-4000-8000-000000000002';
+
 const createAccount = async (req, res, next) => {
   try {
-    const userId = req.user?.id || req.body.userId ||  DEFAULT_DEMO_USER_ID;
     const { name, currency } = req.body;
 
     const account = await accountService.createAccount({
-      userId,
+      userId: req.user.id,
       name,
       currency,
     });
@@ -22,7 +21,7 @@ const createAccount = async (req, res, next) => {
 
 const listAccounts = async (req, res, next) => {
   try {
-    const accounts = await accountService.listAccounts();
+    const accounts = await accountService.listAccounts(req.user.id);
 
     res.status(200).json({
       success: true,
@@ -35,7 +34,10 @@ const listAccounts = async (req, res, next) => {
 
 const getAccountById = async (req, res, next) => {
   try {
-    const account = await accountService.getAccountById(req.params.id);
+    const account = await accountService.getAccountById(
+      req.params.id,
+      req.user.id
+    );
 
     res.status(200).json({
       success: true,
@@ -50,6 +52,7 @@ const updateAccountStatus = async (req, res, next) => {
   try {
     const updatedAccount = await accountService.updateAccountStatus(
       req.params.id,
+      req.user.id,
       req.body.status
     );
 

@@ -1,11 +1,13 @@
 const AppError = require('../utils/AppError');
 
-
 const validate = (schema, property = 'body') => {
   return (req, res, next) => {
-    const { error, value } = schema.validate(req[property], {
-      abortEarly: false, 
-      stripUnknown: true, 
+
+    const dataToValidate = req[property] || {};
+
+    const { error, value } = schema.validate(dataToValidate, {
+      abortEarly: false,
+      stripUnknown: true,
     });
 
     if (error) {
@@ -13,7 +15,6 @@ const validate = (schema, property = 'body') => {
       return next(new AppError(details, 400, 'VALIDATION_ERROR'));
     }
 
-   
     req[property] = value;
     next();
   };

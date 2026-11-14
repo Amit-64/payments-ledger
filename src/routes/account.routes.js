@@ -1,13 +1,14 @@
 const express = require('express');
 const Joi = require('joi');
 const validate = require('../middleware/validate');
+const { requireAuth } = require('../middleware/auth.middleware');
 const accountController = require('../controllers/account.controller');
 
 const router = express.Router();
 
+router.use(requireAuth);
 
 const createAccountSchema = Joi.object({
-  userId: Joi.string().trim().min(1).max(100).optional(),
   name: Joi.string().trim().min(2).max(100).required(),
   currency: Joi.string().trim().uppercase().valid('INR', 'USD').default('INR'),
 });

@@ -1,4 +1,4 @@
-const { query } = require('../config/db');
+const { query } = require("../config/db");
 
 const mapAccountRow = (row) => {
   if (!row) return null;
@@ -46,6 +46,17 @@ const findAccountById = async (id) => {
   return mapAccountRow(result.rows[0]);
 };
 
+const findAccountsByUserId = async (userId) => {
+  const sql = `
+      SELECT *
+      FROM accounts
+      WHERE user_id = $1 AND is_system = FALSE
+      ORDER BY created_at DESC;
+    `;
+  const result = await query(sql, [userId]);
+  return result.rows.map(mapAccountRow);
+};
+
 const updateAccountStatus = async (id, status) => {
   const sql = `
     UPDATE accounts
@@ -62,5 +73,6 @@ module.exports = {
   createAccount,
   findAllAccounts,
   findAccountById,
+  findAccountsByUserId,
   updateAccountStatus,
 };

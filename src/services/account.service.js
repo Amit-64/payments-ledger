@@ -11,11 +11,11 @@ const createAccount = async ({ userId, name, currency = 'INR' }) => {
   return account;
 };
 
-const listAccounts = async () => {
-  return await accountRepository.findAllAccounts();
+const listAccounts = async (userId) => {
+  return await accountRepository.findAccountsByUserId(userId);
 };
 
-const getAccountById = async (accountId) => {
+const getAccountById = async (accountId, userId) => {
   const account = await accountRepository.findAccountById(accountId);
 
   if (!account) {
@@ -26,12 +26,21 @@ const getAccountById = async (accountId) => {
     );
   }
 
+
+  if (account.userId !== userId) {
+    throw new AppError(
+      'You do not have permission to access this account',
+      403,
+      'FORBIDDEN_ACCOUNT_ACCESS'
+    );
+  }
+
   return account;
 };
 
-const updateAccountStatus = async (accountId, status) => {
-  // First verify the account exists (throws 404 if not found)
-  const existingAccount = await getAccountById(accountId);
+const updateAccountStatus = async (accountId, userId, status) => {
+
+  const existingAccount = await getAccountById(accountId, userId);
 
   if (existingAccount.status === 'CLOSED') {
     throw new AppError(
