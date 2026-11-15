@@ -1,0 +1,4 @@
+INSERT INTO accounts (id, user_id, name, currency, balance_minor, status, is_system)
+VALUES
+  ('00000000-0000-4000-8000-000000000098', '00000000-0000-4000-8000-000000000001', 'SYSTEM_RESERVE_USD', 'USD', 0, 'ACTIVE', TRUE)
+ON CONFLICT (id) DO NOTHING;

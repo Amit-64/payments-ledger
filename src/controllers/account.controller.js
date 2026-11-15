@@ -65,9 +65,47 @@ const updateAccountStatus = async (req, res, next) => {
   }
 };
 
+const depositToAccount = async (req, res, next) => {
+    try {
+      const { amountMinor, referenceNote } = req.body;
+  
+      const result = await accountService.depositToAccount({
+        accountId: req.params.id,
+        userId: req.user.id,
+        amountMinor,
+        referenceNote,
+      });
+  
+      res.status(201).json({
+        success: true,
+        data: result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  };
+  
+  const getAccountLedger = async (req, res, next) => {
+    try {
+      const ledgerData = await accountService.getAccountLedger(
+        req.params.id,
+        req.user.id
+      );
+  
+      res.status(200).json({
+        success: true,
+        data: ledgerData,
+      });
+    } catch (err) {
+      next(err);
+    }
+  };
+
 module.exports = {
   createAccount,
+  getAccountLedger,
   listAccounts,
   getAccountById,
+  depositToAccount,
   updateAccountStatus,
 };

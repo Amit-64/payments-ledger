@@ -21,6 +21,11 @@ const updateStatusSchema = Joi.object({
   status: Joi.string().trim().uppercase().valid('ACTIVE', 'FROZEN', 'CLOSED').required(),
 });
 
+const depositSchema = Joi.object({
+    amountMinor: Joi.number().integer().positive().max(100000000000).required(),
+    referenceNote: Joi.string().trim().max(255).optional(),
+  });
+
 router.post('/', validate(createAccountSchema, 'body'), accountController.createAccount);
 router.get('/', accountController.listAccounts);
 router.get('/:id', validate(accountIdParamSchema, 'params'), accountController.getAccountById);
@@ -30,5 +35,16 @@ router.patch(
   validate(updateStatusSchema, 'body'),
   accountController.updateAccountStatus
 );
+router.post(
+    '/:id/deposits',
+    validate(accountIdParamSchema, 'params'),
+    validate(depositSchema, 'body'),
+    accountController.depositToAccount
+  );
+router.get(
+    '/:id/ledger',
+    validate(accountIdParamSchema, 'params'),
+    accountController.getAccountLedger
+  );
 
 module.exports = router;

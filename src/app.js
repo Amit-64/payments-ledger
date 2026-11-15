@@ -31,7 +31,7 @@ app.get('/api/v1/health', async (req, res, next) => {
   }
 });
 
-app.use('/api/v1/accounts', accountRoutes);
+app.use('/api/v1/accounts', accountRoutes)
 app.use('/api/v1/auth', authRoutes);
 
 app.use(notFoundHandler);

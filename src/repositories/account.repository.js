@@ -57,6 +57,17 @@ const findAccountsByUserId = async (userId) => {
   return result.rows.map(mapAccountRow);
 };
 
+const findSystemAccountByCurrency = async (currency) => {
+    const sql = `
+      SELECT *
+      FROM accounts
+      WHERE is_system = TRUE AND currency = $1
+      LIMIT 1;
+    `;
+    const result = await query(sql, [currency]);
+    return mapAccountRow(result.rows[0]);
+  };
+
 const updateAccountStatus = async (id, status) => {
   const sql = `
     UPDATE accounts
@@ -74,5 +85,6 @@ module.exports = {
   findAllAccounts,
   findAccountById,
   findAccountsByUserId,
+  findSystemAccountByCurrency,
   updateAccountStatus,
 };
