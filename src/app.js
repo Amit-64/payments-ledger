@@ -3,6 +3,7 @@ const env = require('./config/env');
 const { query } = require('./config/db');
 const requestLogger = require('./middleware/requestLogger');
 const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
+const transferRoutes =require('./routes/transfer.routes');
 const authRoutes = require('./routes/auth.routes');
 const accountRoutes = require('./routes/account.routes');
 
@@ -33,6 +34,7 @@ app.get('/api/v1/health', async (req, res, next) => {
 
 app.use('/api/v1/accounts', accountRoutes)
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/transfers', transferRoutes);
 
 app.use(notFoundHandler);
 
