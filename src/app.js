@@ -1,6 +1,8 @@
 const express = require('express');
 const env = require('./config/env');
+const helmet = require('helmet');
 const { query } = require('./config/db');
+const {apiLimiter, authLimiter} = require('./middleware/rateLimitter');
 const requestLogger = require('./middleware/requestLogger');
 const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
 const transferRoutes =require('./routes/transfer.routes');
@@ -9,9 +11,12 @@ const accountRoutes = require('./routes/account.routes');
 
 const app = express();
 
-
-app.use(express.json());
+app.use(helmet());
+app.use(express.json({limit: '10kb'}));
 app.use(requestLogger);
+
+
+app.use('/api/v1', apiLimiter);
 
 app.get('/api/v1/health', async (req, res, next) => {
   try {
@@ -33,7 +38,7 @@ app.get('/api/v1/health', async (req, res, next) => {
 });
 
 app.use('/api/v1/accounts', accountRoutes)
-app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/auth', authLimiter, authRoutes);
 app.use('/api/v1/transfers', transferRoutes);
 
 app.use(notFoundHandler);

@@ -1,5 +1,6 @@
-const env = require('../config/env');
 const AppError = require('../utils/AppError');
+const logger = require('../utils/logger');
+const env = require('../config/env');
 
 const notFoundHandler = (req, res, next) => {
   next(
@@ -12,30 +13,42 @@ const notFoundHandler = (req, res, next) => {
 };
 
 const errorHandler = (err, req, res, next) => {
-  const statusCode = err.isOperational ? err.statusCode : 500;
-  const errorCode = err.isOperational ? err.code : 'INTERNAL_SERVER_ERROR';
-  const message = err.isOperational
-    ? err.message
-    : 'An unexpected internal server error occurred';
+  const statusCode = err.statusCode || 500;
+  const errorCode = err.errorCode || 'INTERNAL_SERVER_ERROR';
+  const message =
+    statusCode === 500 && env.nodeEnv === 'production'
+      ? 'An unexpected internal server error occurred'
+      : err.message || 'An unexpected internal server error occurred';
 
-
-  if (!err.isOperational) {
-    console.error('[UNEXPECTED ERROR]', err);
+  if (statusCode >= 500) {
+    logger.error(
+      {
+        requestId: req.requestId,
+        userId: req.user?.id || null,
+        errorCode,
+        err: {
+          message: err.message,
+          stack: err.stack,
+        },
+      },
+      'Unhandled Server Error'
+    );
   }
 
-  const responseBody = {
+  const errorResponse = {
     success: false,
     error: {
       code: errorCode,
       message,
+      requestId: req.requestId,
     },
   };
 
-  if (env.nodeEnv === 'development' && !err.isOperational) {
-    responseBody.error.stack = err.stack;
+  if (env.nodeEnv === 'development' && statusCode >= 500) {
+    errorResponse.error.stack = err.stack;
   }
 
-  res.status(statusCode).json(responseBody);
+  res.status(statusCode).json(errorResponse);
 };
 
 module.exports = {
