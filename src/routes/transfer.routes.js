@@ -19,6 +19,11 @@ const transferIdParamSchema = Joi.object({
   id: Joi.string().uuid({ version: 'uuidv4' }).required(),
 });
 
+const reverseTransferSchema = Joi.object({
+    reason: Joi.string().trim().min(3).max(255).optional(),
+});
+  
+
 router.post(
   '/',
   validate(createTransferSchema, 'body'),
@@ -29,6 +34,13 @@ router.get(
   '/:id',
   validate(transferIdParamSchema, 'params'),
   transferController.getTransferById
+);
+
+router.post(
+    '/:id/reverse',
+    validate(transferIdParamSchema, 'params'),
+    validate(reverseTransferSchema, 'body'),
+    transferController.reverseTransfer
 );
 
 module.exports = router;

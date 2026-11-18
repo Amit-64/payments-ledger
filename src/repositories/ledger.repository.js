@@ -319,6 +319,242 @@ const executeTransferTransaction = async ({
 };
 
 
+const executeReversalTransaction = async ({
+    transferId,
+    reason,
+    requesterUserId,
+  }) => {
+    const client = await getClient();
+  
+    try {
+      await client.query('BEGIN');
+  
+      
+      const originalTransferResult = await client.query(
+        `
+        SELECT *
+        FROM transfers
+        WHERE id = $1
+        FOR UPDATE;
+        `,
+        [transferId]
+      );
+  
+      if (originalTransferResult.rowCount === 0) {
+        throw new AppError(
+          `Transfer with ID ${transferId} not found`,
+          404,
+          'TRANSFER_NOT_FOUND'
+        );
+      }
+  
+      const originalTransfer = originalTransferResult.rows[0];
+  
+      
+      if (originalTransfer.status === 'REVERSED') {
+        throw new AppError(
+          `Transfer ${transferId} has already been reversed`,
+          422,
+          'TRANSFER_ALREADY_REVERSED'
+        );
+      }
+  
+      if (originalTransfer.status !== 'COMPLETED') {
+        throw new AppError(
+          `Only COMPLETED transfers can be reversed (current status: ${originalTransfer.status})`,
+          422,
+          'TRANSFER_NOT_REVERSIBLE'
+        );
+      }
+  
+      
+      if (originalTransfer.transfer_type !== 'TRANSFER') {
+        throw new AppError(
+          `Cannot reverse a transaction of type ${originalTransfer.transfer_type}`,
+          422,
+          'INVALID_TRANSFER_TYPE_FOR_REVERSAL'
+        );
+      }
+  
+      const originalFromId = originalTransfer.from_account_id;
+      const originalToId = originalTransfer.to_account_id;
+      const amountMinor = Number(originalTransfer.amount_minor);
+  
+      
+      const orderedIds = [originalFromId, originalToId].sort();
+      const lockResult = await client.query(
+        `
+        SELECT *
+        FROM accounts
+        WHERE id IN ($1, $2) AND is_system = FALSE
+        ORDER BY id ASC
+        FOR UPDATE;
+        `,
+        orderedIds
+      );
+  
+      const originalFromAccount = lockResult.rows.find(
+        (row) => row.id === originalFromId
+      );
+      const originalToAccount = lockResult.rows.find(
+        (row) => row.id === originalToId
+      );
+  
+      if (!originalFromAccount || !originalToAccount) {
+        throw new AppError(
+          'Participant accounts for this transfer could not be found',
+          404,
+          'ACCOUNT_NOT_FOUND'
+        );
+      }
+  
+     
+      const isParticipant =
+        originalFromAccount.user_id === requesterUserId ||
+        originalToAccount.user_id === requesterUserId;
+  
+      if (!isParticipant) {
+        throw new AppError(
+          'You do not have permission to reverse this transfer',
+          403,
+          'FORBIDDEN_TRANSFER_REVERSAL'
+        );
+      }
+  
+     
+      if (originalFromAccount.status !== 'ACTIVE') {
+        throw new AppError(
+          `Original source account is ${originalFromAccount.status} and cannot receive reversal funds`,
+          422,
+          'SOURCE_ACCOUNT_NOT_ACTIVE'
+        );
+      }
+  
+      if (originalToAccount.status !== 'ACTIVE') {
+        throw new AppError(
+          `Original destination account is ${originalToAccount.status} and cannot be debited for reversal`,
+          422,
+          'DESTINATION_ACCOUNT_NOT_ACTIVE'
+        );
+      }
+  
+      const currentReceiverBalance = Number(originalToAccount.balance_minor);
+      if (currentReceiverBalance < amountMinor) {
+        throw new AppError(
+          `Insufficient funds in destination account to reverse transfer: available ${currentReceiverBalance}, required ${amountMinor}`,
+          422,
+          'INSUFFICIENT_FUNDS_FOR_REVERSAL'
+        );
+      }
+  
+      
+      const updatedOriginalResult = await client.query(
+        `
+        UPDATE transfers
+        SET status = 'REVERSED',
+            updated_at = NOW()
+        WHERE id = $1
+        RETURNING *;
+        `,
+        [transferId]
+      );
+  
+      
+      const reversalTransferResult = await client.query(
+        `
+        INSERT INTO transfers (
+          from_account_id,
+          to_account_id,
+          amount_minor,
+          currency,
+          status,
+          transfer_type,
+          reference_note,
+          reversed_transfer_id
+        )
+        VALUES ($1, $2, $3, $4, 'COMPLETED', 'REVERSAL', $5, $6)
+        RETURNING *;
+        `,
+        [
+          originalToId,
+          originalFromId,
+          amountMinor,
+          originalTransfer.currency,
+          reason || `Reversal of transfer ${transferId}`,
+          transferId,
+        ]
+      );
+      const reversalTransfer = mapTransferRow(reversalTransferResult.rows[0]);
+  
+      const ledgerResult = await client.query(
+        `
+        INSERT INTO ledger_entries (transfer_id, account_id, entry_type, amount_minor)
+        VALUES
+          ($1, $2, 'DEBIT', $3),
+          ($1, $4, 'CREDIT', $5)
+        RETURNING *;
+        `,
+        [
+          reversalTransfer.id,
+          originalToId,
+          -amountMinor, 
+          originalFromId,
+          amountMinor,  
+        ]
+      );
+  
+      
+      const updatedReceiverResult = await client.query(
+        `
+        UPDATE accounts
+        SET balance_minor = balance_minor - $1,
+            updated_at = NOW()
+        WHERE id = $2
+        RETURNING id, balance_minor, currency;
+        `,
+        [amountMinor, originalToId]
+      );
+  
+      
+      const updatedSenderResult = await client.query(
+        `
+        UPDATE accounts
+        SET balance_minor = balance_minor + $1,
+            updated_at = NOW()
+        WHERE id = $2
+        RETURNING id, balance_minor, currency;
+        `,
+        [amountMinor, originalFromId]
+      );
+  
+      await client.query('COMMIT');
+  
+      const refundedSender = updatedSenderResult.rows[0];
+      const debitedReceiver = updatedReceiverResult.rows[0];
+  
+      return {
+        originalTransfer: mapTransferRow(updatedOriginalResult.rows[0]),
+        reversalTransfer,
+        entries: ledgerResult.rows.map(mapLedgerEntryRow),
+        refundedAccount: {
+          id: refundedSender.id,
+          balanceMinor: Number(refundedSender.balance_minor),
+          currency: refundedSender.currency,
+        },
+        debitedAccount: {
+          id: debitedReceiver.id,
+          balanceMinor: Number(debitedReceiver.balance_minor),
+          currency: debitedReceiver.currency,
+        },
+      };
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  };
+  
 const findTransferById = async (transferId) => {
   const transferResult = await query(
     `
@@ -384,6 +620,7 @@ const getAccountLedgerAndSum = async (accountId) => {
 module.exports = {
   executeDepositTransaction,
   executeTransferTransaction,
+  executeReversalTransaction,
   findTransferById,
   getAccountLedgerAndSum,
 };

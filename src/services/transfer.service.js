@@ -126,7 +126,17 @@ const getTransferById = async (transferId, requesterUserId) => {
   };
 };
 
-module.exports = {
-  createTransfer,
-  getTransferById,
-};
+const reverseTransfer = async ({ transferId, reason, requesterUserId }) => {
+    return await ledgerRepository.executeReversalTransaction({
+      transferId,
+      reason,
+      requesterUserId,
+    });
+  };
+  
+  module.exports = {
+    createTransfer,
+    getTransferById,
+    reverseTransfer,
+  };
+  

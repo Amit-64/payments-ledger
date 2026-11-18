@@ -56,7 +56,26 @@ const getTransferById = async (req, res, next) => {
   }
 };
 
-module.exports = {
-  createTransfer,
-  getTransferById,
-};
+const reverseTransfer = async (req, res, next) => {
+    try {
+      const result = await transferService.reverseTransfer({
+        transferId: req.params.id,
+        reason: req.body.reason,
+        requesterUserId: req.user.id,
+      });
+  
+      res.status(201).json({
+        success: true,
+        data: result,
+      });
+    } catch (err) {
+      next(err);
+    }
+  };
+  
+  module.exports = {
+    createTransfer,
+    getTransferById,
+    reverseTransfer,
+  };
+  

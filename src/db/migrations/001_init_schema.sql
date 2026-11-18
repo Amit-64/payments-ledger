@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS transfers (
   reversed_transfer_id UUID REFERENCES transfers(id) ON DELETE RESTRICT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  -- An account cannot transfer money to itself
+  
   CONSTRAINT chk_transfers_different_accounts CHECK (from_account_id <> to_account_id)
 );
 
