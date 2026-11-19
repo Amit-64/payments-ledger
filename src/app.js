@@ -19,6 +19,26 @@ app.use(requestLogger);
 
 app.use('/api/v1', apiLimiter);
 
+app.get('/', (req, res) => {
+    res.status(200).json({
+      service: 'Payments Ledger API',
+      status: 'live',
+      description:
+        'Double-entry payments ledger backend with FOR UPDATE row locking, SHA-256 idempotency keys, and immutable reversals.',
+      healthCheck: '/api/v1/health',
+      githubRepo: 'https://github.com/Amit-64/payments-ledger',
+      endpoints: {
+        register: 'POST /api/v1/auth/register',
+        login: 'POST /api/v1/auth/login',
+        accounts: 'GET /api/v1/accounts',
+        deposit: 'POST /api/v1/accounts/:id/deposits',
+        transfers: 'POST /api/v1/transfers',
+        reverseTransfer: 'POST /api/v1/transfers/:id/reverse',
+      },
+    });
+  });
+  
+
 app.get('/api/v1/health', async (req, res, next) => {
   try {
     await query('SELECT 1');
