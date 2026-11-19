@@ -10,6 +10,7 @@ const authRoutes = require('./routes/auth.routes');
 const accountRoutes = require('./routes/account.routes');
 
 const app = express();
+app.set('trust proxy', 1);
 
 app.use(helmet());
 app.use(express.json({limit: '10kb'}));
