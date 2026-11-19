@@ -6,6 +6,8 @@ const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: Number(process.env.PORT) || 3000,
   serviceName: process.env.SERVICE_NAME || 'payments-ledger-api',
+  logLevel: process.env.LOG_LEVEL || 'info',
+  databaseUrl: process.env.DATABASE_URL || null,
 
   db: {
     host: process.env.DB_HOST || 'localhost',
