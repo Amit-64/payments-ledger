@@ -1,0 +1,310 @@
+{
+    "openapi": "3.0.3",
+    "info": {
+      "title": "Payments Ledger API",
+      "version": "1.0.0",
+      "description": "Double-entry payments ledger backend built with Node.js, Express, and PostgreSQL — featuring FOR UPDATE row locking, SHA-256 idempotency keys, and immutable reversals."
+    },
+    "servers": [
+      {
+        "url": "https://payments-ledger-aars.onrender.com/api/v1",
+        "description": "Live Production Server (Render + Supabase)"
+      },
+      {
+        "url": "http://localhost:3000/api/v1",
+        "description": "Local Development Server"
+      }
+    ],
+    "tags": [
+      { "name": "System", "description": "Service and database health" },
+      { "name": "Authentication", "description": "User registration and JWT login" },
+      { "name": "Accounts", "description": "Ledger account creation, balances, and status" },
+      { "name": "Deposits & Ledger", "description": "Funding accounts and viewing immutable journal entries" },
+      { "name": "Transfers & Idempotency", "description": "Atomic P2P transfers and compensating reversals" }
+    ],
+    "components": {
+      "securitySchemes": {
+        "bearerAuth": {
+          "type": "http",
+          "scheme": "bearer",
+          "bearerFormat": "JWT"
+        }
+      }
+    },
+    "paths": {
+      "/health": {
+        "get": {
+          "tags": ["System"],
+          "summary": "Check API and PostgreSQL connection health",
+          "responses": {
+            "200": { "description": "Service and database are UP" }
+          }
+        }
+      },
+      "/auth/register": {
+        "post": {
+          "tags": ["Authentication"],
+          "summary": "Register a new user",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["email", "password"],
+                  "properties": {
+                    "email": { "type": "string", "example": "amit.demo@example.com" },
+                    "password": { "type": "string", "example": "Password123!" }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": { "description": "User registered successfully" },
+            "400": { "description": "Validation error" },
+            "409": { "description": "Email already registered" }
+          }
+        }
+      },
+      "/auth/login": {
+        "post": {
+          "tags": ["Authentication"],
+          "summary": "Login and obtain a JWT access token",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["email", "password"],
+                  "properties": {
+                    "email": { "type": "string", "example": "amit.demo@example.com" },
+                    "password": { "type": "string", "example": "Password123!" }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": { "description": "Returns accessToken (copy and paste into Authorize button above)" },
+            "401": { "description": "Invalid credentials" }
+          }
+        }
+      },
+      "/accounts": {
+        "get": {
+          "tags": ["Accounts"],
+          "summary": "List all accounts belonging to the logged-in user",
+          "security": [{ "bearerAuth": [] }],
+          "responses": {
+            "200": { "description": "List of user accounts with current balances" },
+            "401": { "description": "Missing or invalid JWT" }
+          }
+        },
+        "post": {
+          "tags": ["Accounts"],
+          "summary": "Create a new ledger account",
+          "security": [{ "bearerAuth": [] }],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["name", "currency"],
+                  "properties": {
+                    "name": { "type": "string", "example": "Amit Primary Checking" },
+                    "currency": { "type": "string", "example": "INR" }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": { "description": "Account created" }
+          }
+        }
+      },
+      "/accounts/{accountId}": {
+        "get": {
+          "tags": ["Accounts"],
+          "summary": "Get single account details and balance",
+          "security": [{ "bearerAuth": [] }],
+          "parameters": [
+            {
+              "name": "accountId",
+              "in": "path",
+              "required": true,
+              "schema": { "type": "string", "format": "uuid" }
+            }
+          ],
+          "responses": {
+            "200": { "description": "Account details" },
+            "403": { "description": "Forbidden — account belongs to another user" },
+            "404": { "description": "Account not found" }
+          }
+        }
+      },
+      "/accounts/{accountId}/status": {
+        "patch": {
+          "tags": ["Accounts"],
+          "summary": "Freeze or reactivate an account",
+          "security": [{ "bearerAuth": [] }],
+          "parameters": [
+            {
+              "name": "accountId",
+              "in": "path",
+              "required": true,
+              "schema": { "type": "string", "format": "uuid" }
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["status"],
+                  "properties": {
+                    "status": { "type": "string", "enum": ["ACTIVE", "FROZEN"], "example": "FROZEN" }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": { "description": "Account status updated" }
+          }
+        }
+      },
+      "/accounts/{accountId}/deposits": {
+        "post": {
+          "tags": ["Deposits & Ledger"],
+          "summary": "Deposit funds into an account (amount in minor units, e.g., paise)",
+          "security": [{ "bearerAuth": [] }],
+          "parameters": [
+            {
+              "name": "accountId",
+              "in": "path",
+              "required": true,
+              "schema": { "type": "string", "format": "uuid" }
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["amountMinor"],
+                  "properties": {
+                    "amountMinor": { "type": "integer", "example": 5000000, "description": "5000000 paise = ₹50,000.00" },
+                    "referenceNote": { "type": "string", "example": "Initial salary deposit" }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": { "description": "Deposit recorded as double-entry DEBIT/CREDIT" }
+          }
+        }
+      },
+      "/accounts/{accountId}/ledger": {
+        "get": {
+          "tags": ["Deposits & Ledger"],
+          "summary": "Fetch append-only double-entry ledger history for an account",
+          "security": [{ "bearerAuth": [] }],
+          "parameters": [
+            {
+              "name": "accountId",
+              "in": "path",
+              "required": true,
+              "schema": { "type": "string", "format": "uuid" }
+            }
+          ],
+          "responses": {
+            "200": { "description": "Chronological list of DEBIT and CREDIT entries" }
+          }
+        }
+      },
+      "/transfers": {
+        "post": {
+          "tags": ["Transfers & Idempotency"],
+          "summary": "Execute an atomic, idempotent P2P transfer",
+          "security": [{ "bearerAuth": [] }],
+          "parameters": [
+            {
+              "name": "Idempotency-Key",
+              "in": "header",
+              "required": true,
+              "schema": { "type": "string", "example": "demo-transfer-001" },
+              "description": "Unique client key; retries with the same key and body return the cached response without double-charging"
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["fromAccountId", "toAccountId", "amountMinor"],
+                  "properties": {
+                    "fromAccountId": { "type": "string", "format": "uuid" },
+                    "toAccountId": { "type": "string", "format": "uuid" },
+                    "amountMinor": { "type": "integer", "example": 100000, "description": "100000 paise = ₹1,000.00" },
+                    "referenceNote": { "type": "string", "example": "Rent split" }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "201": { "description": "Transfer completed atomically" },
+            "200": { "description": "Idempotent replay — cached response returned" },
+            "409": { "description": "In-flight request conflict" },
+            "422": { "description": "Idempotency-Key reused with modified payload" }
+          }
+        }
+      },
+      "/transfers/{transferId}": {
+        "get": {
+          "tags": ["Transfers & Idempotency"],
+          "summary": "Get transfer details by ID",
+          "security": [{ "bearerAuth": [] }],
+          "parameters": [
+            {
+              "name": "transferId",
+              "in": "path",
+              "required": true,
+              "schema": { "type": "string", "format": "uuid" }
+            }
+          ],
+          "responses": {
+            "200": { "description": "Transfer record" }
+          }
+        }
+      },
+      "/transfers/{transferId}/reverse": {
+        "post": {
+          "tags": ["Transfers & Idempotency"],
+          "summary": "Reverse a completed transfer using compensating ledger entries",
+          "security": [{ "bearerAuth": [] }],
+          "parameters": [
+            {
+              "name": "transferId",
+              "in": "path",
+              "required": true,
+              "schema": { "type": "string", "format": "uuid" }
+            }
+          ],
+          "responses": {
+            "201": { "description": "Transfer reversed via offsetting DEBIT/CREDIT entries" },
+            "409": { "description": "Transfer already reversed" }
+          }
+        }
+      }
+    }
+  }
+  
